@@ -6,13 +6,16 @@ import java.util.Random;
 public class servidor {
    private ServerSocket serverSocket;
    private String word;
+   int wordSize;
    int tries = 5;
+   int rightLetters = 0;
+   String goods;
    
    public servidor(int puerto, int tamanoCola) throws IOException {
       serverSocket = new ServerSocket(puerto, tamanoCola);
    }
 
-   public void run() {
+   public void run() throws InterruptedException {
       Socket socket; 
       while(true) {
          try {
@@ -26,9 +29,17 @@ public class servidor {
             while(comunications) {
             	int operation;
             	DataInputStream in = new DataInputStream(socket.getInputStream());
-            	String message = in.readUTF();
-            	operation = analyzeString(socket ,message);
-            	comunications = makeResponse(socket, operation, message);
+            	if(in.available() != 0) {
+            		System.out.println(in.available());
+                	String message = in.readUTF();
+                	operation = analyzeString(socket ,message);
+                	comunications = makeResponse(socket, operation, message);
+            	} else {
+            		System.out.println("**************A dormir**************");
+            		Thread.sleep(3000);
+            	}
+            	
+            	
             }
            
             socket.close(); 
@@ -48,7 +59,7 @@ public class servidor {
    
    public int analyzeString(Socket socket, String menssage) {
 	   
-	   String[] parts = menssage.split(";");
+	   String[] parts = menssage.split(",");
 	   String operation = parts[0];
 	   
 	   if (operation.equals("initGame")) {
@@ -60,7 +71,7 @@ public class servidor {
 	   if (operation.equals("checkLetter")) {
 		   return 3;
 	   }
-	   if(!operation.equals("initGame") & !operation.equals("stopGame") & !operation.equals("checkLetter")) {
+	   if(!operation.equals("initGame") && !operation.equals("stopGame") && !operation.equals("checkLetter")) {
 		   return -1;
 	   }
 	   return 0;
@@ -72,42 +83,77 @@ public class servidor {
 	   
 	   switch(operation) {
 	   		case 1:
+	   			System.out.println("InitGame");
 	   			word = generateRandomWord();
-	     	   out.writeUTF("Your word was " + word.length() + "letters");
+	     	   out.writeUTF("checkLetter," + word.length());
+	     	   System.out.println("checkLetter," + word.length());
+	     	   wordSize = word.length();
+	     	   for(int i =0; i <= wordSize-1; i++) {
+	     		   if(goods == null) {
+	     			   goods = "*";
+	     		   } else {
+	     			  goods += "*";
+	     		   }
+
+	     	   }
 	     	   return true;
 	   
 	   		case 2:
+	   			System.out.println("EndGame");
 	   			return false;
 	   		
 	   		case 3:
-	   			output = "Word: ";
+	   			System.out.println("Checkletter");
+	   			System.out.println(word);
+	   			
 	    		   boolean state = false;
-	    		   String[] parts = message.split(";");
+	    		   String[] parts = message.split(",");
 	    		   String charWord = parts[1];
+	    		   System.out.println("Letra: " + charWord);
 	    		   for (int i = 0; i < word.length(); i++) {
 	    			   String letter = String.valueOf(word.charAt(i));
+	    			   if(rightLetters == wordSize) {
+	    				   output = "winGame,Felicidades";
+	    				   break;
+	    			   }
 	    			   if (letter.equals(charWord)) {
-	    				   output += charWord;
+	    				   char[] myNameChars = goods.toCharArray();
+	    				   myNameChars[i] = charWord.charAt(0);
+	    				   goods = String.valueOf(myNameChars);
+	    				   //output += charWord;
 	    				   state = true;
+	    				   rightLetters++;
 	    			   } else {
-	    				   output += "*";
+	    				  // output += "*";
 	    			   }
 	    		   } 
 	    		   
 	    		   if (state == false){
 	    			   if (tries == 0) {
-	    				   output = "Se acabaron los intentos";
+	    				   output = "gameOver,Se acabaron los intentos";
+	    				   
 	    				   return false;
 	    			   } else {
 	    				   tries --;
+	    				   System.out.println("Intentos: " + String.valueOf(tries));
 	    				   return true;
 	    			   }
 	    			   
 	    		   }
+	    		   if(rightLetters == wordSize) {
+    				   output = "winGame,Felicidades";
+    				   out.writeUTF(output);
+    			   } else {
+    				   output = "checkLetter,Word: " + goods;
+    	    		   System.out.println("Termina revisar = " + output);
+    	    		   out.writeUTF(output);
+    			   }
 	    		   
-	    		   out.writeUTF(output);
+	    		   return true;
+	    		   
 	    	default:
-	    		return false;
+	    		System.out.println("NoOp");
+	    		return true;
 	   }
        
    }
@@ -129,7 +175,7 @@ public class servidor {
        return words.get(rand_int1);
    }
    
-   public static void main(String[] args) {
+   public static void main(String[] args) throws InterruptedException {
       int puerto = 8067;
       int cola = 5;
       
